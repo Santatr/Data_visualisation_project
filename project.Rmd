@@ -1,9 +1,508 @@
 ---
-title: "data_vsualisation"
-output: pdf_document
+title: "Data Visualisation Project"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
 ---
 
+# 1) Import the necessary packages
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(forcats)
+library(readr)
+library(cowplot)
+library(ggbeeswarm)
+library(gganimate)
+library(grid)
+library(gridExtra)
+library(transformr)
+```
+
+# 2) Load the dataset
+```{r message=FALSE, warning=FALSE}
+data <- read_csv("data/HRDataset_v14.csv")
+head(data)
+```
+# 3) About the data
+
+```{r message=FALSE, warning=FALSE}
+glimpse(data)
+```
+
+# 4) Research questions:
+### 1. Is there any relation between gender and salary in each department?
+### 2. Is there any relation between race and salary in each department?
+### 3. Show the evolution of the sources of recruiting over time.
+
+
+# 5) Data cleaning
+
+```{r message=FALSE, warning=FALSE}
+data <- data[, c('Sex', 'Salary', 'RaceDesc', 'Department', 'RecruitmentSource', 'DateofHire')] # select only the columns that we need
+```
+
+```{r message=FALSE, warning=FALSE}
+sum(is.na(data)) # sum of rows that contain NA values
+```
+```{r message=FALSE, warning=FALSE}
+# na.omit(data)    # remove all rows that contain NA values
+data <- data %>% tidyr::drop_na()
+```
+
+```{r message=FALSE, warning=FALSE}
+# Encode the RaceDesc column
+encode_ordinal <- function(x, order = unique(x)) {
+  x <- as.numeric(factor(x, levels = order, exclude = NULL))
+  x
+}
+
+data <- data %>% mutate(RaceDescID = encode_ordinal(data[["RaceDesc"]]))
+```
+
+```{r message=FALSE, warning=FALSE}
+# Convert the date in chr type to date format
+data <- data %>%
+  mutate(DateofHire = as.Date(DateofHire, "%m/%d/%Y")) %>%
+  mutate(DateofHire = as.Date(DateofHire, "%d/%m/%Y"))
+
+# Create columns Month-Yr and Yr of the DateofHire data
+data <- data %>%  
+  mutate("Yr-Month" = format(DateofHire, "%Y-%m")) %>% 
+  mutate(Yr = format(DateofHire, "%Y"))
+data <- data %>%
+  mutate(Yr = as.numeric(Yr)) 
+```
+
+
 ```{r}
+data$Sex <- reorder(data$Sex, data$Sex, function(x)-length(x)) # Order the Sex data by its total number
+
+data$Department <- reorder(data$Department, data$Department, function(x)-length(x)) # Order the Department data by the number of workers in it
+
+data$RaceDesc <- reorder(data$RaceDesc, data$RaceDesc, function(x)-length(x)) # Order the RaceDesc data by its total number
+
+data$RaceDescID <- reorder(data$RaceDescID, data$RaceDescID, function(x)-length(x)) # Order the RaceDescID data by its total number
+
+data$RecruitmentSource <- reorder(data$RecruitmentSource, data$RecruitmentSource, function(x)-length(x)) # Order the RecruitmentSource data by its total number
+```
+
+# 6) Visualization between Gender and Salary in the company
+
+```{r message=FALSE, warning=FALSE}
+data_piechart <- data %>% 
+  group_by(Sex) %>% 
+  summarize(count = n()) %>% 
+  mutate(proportion = count / sum(count) * 100) %>%
+  arrange(proportion) %>% 
+  mutate(ypos = cumsum(proportion) - 0.5 * proportion )
+
+p1 <- data_piechart %>% 
+  ggplot() +
+  aes(x = "", y = proportion, fill = Sex) +
+  geom_col(color = "white") +
+  geom_label(aes(label = scales::percent(proportion / 100)), 
+            position = position_stack(vjust = 0.5),
+            size = 3,
+            show_guide = F) +
+  coord_polar(theta = "y", start = 0) + 
+  theme_void() + 
+  labs(title = 'Gender Ratio') +
+  theme(legend.position = "bottom", 
+        plot.title = element_text(hjust = 0.5)) 
+
+p2 <- data %>%   
+  ggplot() +
+  aes(x = Department, fill = Sex) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = "none") + 
+  labs(title = 'Gender Ratio per Department') +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        # axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+plot_grid(p1, p2)
+
+
+data %>%   
+  group_by(Sex, Department) %>% 
+  summarise(n = n()) %>% 
+  ggplot() +
+  aes(x = Department, y = n, fill = Sex) +
+  geom_col(position = "dodge") +
+  geom_text(aes(Department, n, label = n, group = Sex), 
+            hjust = -0.05,
+            position = position_dodge(width = 1)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev(levels(data$Department))) +
+  labs(title = 'Sex distribution accross Department') +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+
+data_ <- data %>% 
+  group_by(Sex) %>% 
+  summarise(avg = mean(Salary)) 
+ 
+p3 <- data %>% 
+  ggplot() +
+  aes(x = Sex, y = Salary, color = Sex) +
+  geom_beeswarm(cex = 1.5, size = 3, alpha = 0.7) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(title = 'Salary and Sex') +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+p4 <- data %>%   
+  ggplot() +
+  aes(x = Department, y = Salary, color = Sex) +
+  geom_beeswarm(cex = 0.75, size = 1.5, alpha = 0.7) +
+  guides(color = "none") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(title = 'Salary and Sex per Depart.') +
+  theme(plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        # axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+plot_grid(p3, p4)
+
+data %>% 
+  ggplot() +
+  aes(x = Sex, y = Salary, color = Sex) +
+  geom_beeswarm(cex = 1.75, size = 1.75, alpha = 0.7) +
+  facet_wrap(~ Department) +
+  labs(title = 'Salary and Sex accross Department') +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+```
+
+# 7) Visualization between Race and Salary in the company
+
+##### Race label:
+##### 1 : White
+##### 2 : Black or African American 
+##### 3 : Asian
+##### 4 : Two or more races
+##### 5 : American Indian or Alaska Native 
+##### 6 : Hispanic
+
+```{r message=FALSE, warning=FALSE}
+p_tmp <- data %>%   
+  ggplot() +
+  aes(x = RaceDesc, fill = RaceDesc) +
+  geom_bar() +
+  labs(fill = "Recruitment Source")
+  
+# Draw Only Legend
+legend <- get_legend(p_tmp)                  
+grid.newpage()                              
+grid.draw(legend) 
+
+data %>% 
+  group_by(RaceDescID) %>% 
+  summarise(n = n()) %>% 
+  ggplot() +
+  aes(x = RaceDescID, y = n, fill = RaceDescID) +
+  geom_col(position = "dodge") +
+  geom_text(aes(RaceDescID, n, label = n, group = RaceDescID), 
+            hjust = -0.1,
+            position = position_dodge(width = 1)) +
+  coord_flip() + 
+  scale_x_discrete(limits = rev(levels(data$RaceDescID))) +
+  guides(fill = "none") + 
+  labs(title = 'Race Ratio') +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+data %>%   
+  ggplot() +
+  aes(x = Department, fill = RaceDescID) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = "none") + 
+  labs(title = 'Race accross Department') +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        # axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+
+data %>% 
+  group_by(RaceDescID, Department) %>% 
+  summarise(n = n()) %>% 
+  ggplot() +
+  aes(x = RaceDescID, y = n, fill = RaceDescID) +
+  geom_col(position = "dodge") +
+  geom_text(aes(RaceDescID, n, label = n, group = RaceDescID), 
+            vjust = 0,
+            hjust = 0.5,
+            size = 2.5,
+            position = position_dodge(width = 1)) +
+  facet_wrap(~ Department) +
+  guides(fill = "none") + 
+  labs(title = 'Race accross Department') +
+  theme(plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+
+p7 <- data %>% 
+  ggplot() +
+  aes(x = RaceDescID, y = Salary, color = RaceDescID) +
+  geom_beeswarm(cex = 0.75, size = 3, alpha = 0.7) +
+  guides(color = "none") +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(title = 'Salary and Race') +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+
+p8 <- data %>%   
+  ggplot() +
+  aes(x = Department, y = Salary, color = RaceDescID) +
+  geom_beeswarm(cex = 0.75, size = 1.5, alpha = 0.7) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(color = "none") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  labs(title = 'Salary and Race per Depart.') +
+  theme(plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        # axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+
+plot_grid(p7, p8)
+
+
+data %>% 
+  ggplot() +
+  aes(x = RaceDescID, y = Salary, color = RaceDescID) +
+  geom_violin(
+    alpha = 0.7, 
+    trim = TRUE) +
+  geom_beeswarm(cex = 0.75, size = 2, alpha = 0.7) +
+  facet_wrap(~ Department) +
+  guides(color = "none") +
+  labs(title = 'Salary and Race accross Department') +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+```
+
+# 8) Visualization of Recruitment sources over recruiting time in each department
+
+```{r message=FALSE, warning=FALSE}
+data_piechart <- data %>% 
+  group_by(RecruitmentSource) %>% 
+  summarize(count = n()) %>% 
+  mutate(proportion = count / sum(count) * 100) %>%
+  arrange(proportion) %>% 
+  mutate(ypos = cumsum(proportion) - 0.5 * proportion )
+
+p9 <- data_piechart %>% 
+  ggplot() +
+  aes(x = "", y = proportion, fill = RecruitmentSource) +
+  geom_col(color = "white") +
+  geom_label(aes(label = if_else(proportion > 7, scales::percent(proportion / 100), NULL)), 
+            position = position_stack(vjust = 0.5),
+            size = 2.5,
+            show_guide = F) +
+  coord_polar(theta = "y", start = 0) + 
+  theme_void() +
+  labs(title = 'Recruitment source ratio') +
+  theme(plot.title = element_text(hjust = 0.5))
+  
+# Draw Only Legend
+legend <- get_legend(p9)                  
+grid.newpage()                              
+grid.draw(legend) 
+
+p10 <- data %>%   
+  ggplot() +
+  aes(x = Department, fill = RecruitmentSource) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = "none") +
+  labs(title = 'Recruitment Source per Department') +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+			  panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        # axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank())
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank())
+
+p9 + guides(fill = "none")
+p10
+# plot_grid(p9 + guides(fill = "none"), p10, labels = c('A', 'B'))
+
+
+data %>% 
+  group_by(RecruitmentSource, Department) %>% 
+  summarise(n = n()) %>% 
+  ggplot() +
+  aes(x = RecruitmentSource, y = n, fill = RecruitmentSource) +
+  geom_col(position = "dodge") +
+  geom_text(aes(RecruitmentSource, n, label = n, group = RecruitmentSource), 
+            vjust = 0,
+            hjust = 0.5,
+            size = 2.5,
+            position = position_dodge(width = 1)) +
+  facet_wrap(~ Department) +
+  guides(fill = "none") + 
+  labs(title = 'Recruitment Source accross Department') +
+  theme(plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
 
 ```
+
+```{r message=FALSE, warning=FALSE}
+data_ <- data %>% 
+  group_by(`Yr`, RecruitmentSource, Department) %>%
+  summarise(n = n()) %>% 
+  pivot_wider(names_from = RecruitmentSource, values_from = n, names_prefix = "")
+
+data_[is.na(data_)] <- 0 # replace all the NA to 0
+
+data_ <- data_ %>% 
+  pivot_longer(cols = c(unique(data$RecruitmentSource)), names_to = 'RecruitmentSource', values_to = 'n') 
+
+data_
+
+p = data_ %>% 
+  ggplot() +
+  aes(x = RecruitmentSource, y = n, fill = RecruitmentSource) +
+  geom_bar(stat='identity') +
+  theme(plot.title = element_text(hjust = 0.5),
+        # panel.grid.major = element_blank(), 
+			  # panel.grid.minor = element_blank(),
+        # panel.border = element_blank(),
+        # panel.background = element_blank(),
+			  # axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+			  # axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        # axis.ticks.y=element_blank()) + 
+  transition_states(Yr, transition_length = 1, state_length = 30) +
+  labs(fill = "Recruitment Source", title = 'Year: {closest_state}')
+
+animate(p, nframes = 200)
+```
+
+
 
