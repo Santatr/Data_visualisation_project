@@ -6,8 +6,13 @@ output:
   pdf_document: default
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+
 # 1) Import the necessary packages
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
@@ -34,27 +39,34 @@ glimpse(data)
 ```
 
 # 4) Research questions:
-### 1. Is there any relation between gender and salary in each department?
-### 2. Is there any relation between race and salary in each department?
-### 3. Show the evolution of the sources of recruiting over time.
+1. Is there any relation between gender and salary in each department?
+2. Is there any relation between race and salary in each department?
+3. Show the evolution of the sources of recruiting over time.
 
 
 # 5) Data cleaning
 
-```{r message=FALSE, warning=FALSE}
-data <- data[, c('Sex', 'Salary', 'RaceDesc', 'Department', 'RecruitmentSource', 'DateofHire')] # select only the columns that we need
-```
+- Select only the columns that we need
 
 ```{r message=FALSE, warning=FALSE}
-sum(is.na(data)) # sum of rows that contain NA values
+data <- data[, c('Sex', 'Salary', 'RaceDesc', 'Department', 'RecruitmentSource', 'DateofHire')] 
 ```
+
+- Sum of rows that contain NA values
+
 ```{r message=FALSE, warning=FALSE}
-# na.omit(data)    # remove all rows that contain NA values
+# sum(is.na(data))
+```
+
+- Remove all rows that contain NA values
+
+```{r message=FALSE, warning=FALSE}
 data <- data %>% tidyr::drop_na()
 ```
 
+- Encode the RaceDesc column
+
 ```{r message=FALSE, warning=FALSE}
-# Encode the RaceDesc column
 encode_ordinal <- function(x, order = unique(x)) {
   x <- as.numeric(factor(x, levels = order, exclude = NULL))
   x
@@ -63,13 +75,17 @@ encode_ordinal <- function(x, order = unique(x)) {
 data <- data %>% mutate(RaceDescID = encode_ordinal(data[["RaceDesc"]]))
 ```
 
+- Convert the date in type chr to date format
+
 ```{r message=FALSE, warning=FALSE}
-# Convert the date in chr type to date format
 data <- data %>%
   mutate(DateofHire = as.Date(DateofHire, "%m/%d/%Y")) %>%
   mutate(DateofHire = as.Date(DateofHire, "%d/%m/%Y"))
+```
 
-# Create columns Month-Yr and Yr of the DateofHire data
+- Create columns Month-Yr and Yr of the DateofHire data
+
+```{r message=FALSE, warning=FALSE}
 data <- data %>%  
   mutate("Yr-Month" = format(DateofHire, "%Y-%m")) %>% 
   mutate(Yr = format(DateofHire, "%Y"))
@@ -77,17 +93,35 @@ data <- data %>%
   mutate(Yr = as.numeric(Yr)) 
 ```
 
+- Order the Sex data by its total number
+
+```{r message=FALSE, warning=FALSE}
+data$Sex <- reorder(data$Sex, data$Sex, function(x)-length(x)) 
+```
+
+- Order the Department data by the number of workers in it
 
 ```{r}
-data$Sex <- reorder(data$Sex, data$Sex, function(x)-length(x)) # Order the Sex data by its total number
+data$Department <- reorder(data$Department, data$Department, function(x)-length(x)) 
+```
 
-data$Department <- reorder(data$Department, data$Department, function(x)-length(x)) # Order the Department data by the number of workers in it
+- Order the RaceDesc data by its total number
 
-data$RaceDesc <- reorder(data$RaceDesc, data$RaceDesc, function(x)-length(x)) # Order the RaceDesc data by its total number
+```{r}
+data$RaceDesc <- reorder(data$RaceDesc, data$RaceDesc, function(x)-length(x)) 
+```
 
-data$RaceDescID <- reorder(data$RaceDescID, data$RaceDescID, function(x)-length(x)) # Order the RaceDescID data by its total number
+- Order the RaceDescID data by its total number
 
-data$RecruitmentSource <- reorder(data$RecruitmentSource, data$RecruitmentSource, function(x)-length(x)) # Order the RecruitmentSource data by its total number
+```{r}
+data$RaceDescID <- reorder(data$RaceDescID, data$RaceDescID, function(x)-length(x))
+```
+
+- Order the RecruitmentSource data by its total number
+
+```{r}
+data$RecruitmentSource <- reorder(data$RecruitmentSource, data$RecruitmentSource, function(x)-length(x)) 
+
 ```
 
 # 6) Visualization between Gender and Salary in the company
@@ -227,16 +261,17 @@ data %>%
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank())
 ```
+CONCLUSION: Fortunately, the Sex variable is more likely balanced in our data, We can observe the similarity in the distribution of Salary in each department between Male and Female. We can also see few outliers. 
 
 # 7) Visualization between Race and Salary in the company
 
-##### Race label:
-##### 1 : White
-##### 2 : Black or African American 
-##### 3 : Asian
-##### 4 : Two or more races
-##### 5 : American Indian or Alaska Native 
-##### 6 : Hispanic
+Race label:
+1 : White
+2 : Black or African American 
+3 : Asian
+4 : Two or more races
+5 : American Indian or Alaska Native 
+6 : Hispanic
 
 ```{r message=FALSE, warning=FALSE}
 p_tmp <- data %>%   
@@ -290,9 +325,9 @@ data %>%
 			  axis.title.x=element_blank(),
         # axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-			  axis.title.y=element_blank())
+			  axis.title.y=element_blank()) 
         # axis.text.y=element_blank(),
-        # axis.ticks.y=element_blank())
+        # axis.ticks.y=element_blank()) 
 
 data %>% 
   group_by(RaceDescID, Department) %>% 
@@ -389,6 +424,7 @@ data %>%
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank())
 ```
+CONCLUSION: It is difficult to see the relationship between Race and Salary because of the Race ratio. Indeed, in our data, we can see 187 Whites compared to 3 American Indian or 1 Hispanic. Hence, for this study, we need more data.
 
 # 8) Visualization of Recruitment sources over recruiting time in each department
 
@@ -455,7 +491,7 @@ data %>%
             position = position_dodge(width = 1)) +
   facet_wrap(~ Department) +
   guides(fill = "none") + 
-  labs(title = 'Recruitment Source accross Department') +
+  labs(title = 'Recruitment Source accross Department (2006-2018)') +
   theme(plot.title = element_text(hjust = 0.5),
         # panel.grid.major = element_blank(), 
 			  # panel.grid.minor = element_blank(),
@@ -481,7 +517,6 @@ data_[is.na(data_)] <- 0 # replace all the NA to 0
 data_ <- data_ %>% 
   pivot_longer(cols = c(unique(data$RecruitmentSource)), names_to = 'RecruitmentSource', values_to = 'n') 
 
-data_
 
 p = data_ %>% 
   ggplot() +
@@ -499,7 +534,7 @@ p = data_ %>%
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank()) + 
   transition_states(Yr, transition_length = 1, state_length = 30) +
-  labs(fill = "Recruitment Source", title = 'Year: {closest_state}')
+  labs(fill = "Recruitment Source", title = 'Recruitment Source in {closest_state}')
 
 animate(p, nframes = 200)
 ```
