@@ -428,6 +428,7 @@ data %>%
 ```
 
 
+
 CONCLUSION: It is difficult to see the relationship between Race and Salary because of the Race ratio. Indeed, in our data, we can see 187 Whites compared to 3 American Indian or 1 Hispanic. Hence, for this study, we need more data.
 
 # 8) Visualization of Recruitment sources over recruiting time in each department
