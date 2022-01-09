@@ -261,17 +261,19 @@ data %>%
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank())
 ```
+
+
 CONCLUSION: Fortunately, the Sex variable is more likely balanced in our data, We can observe the similarity in the distribution of Salary in each department between Male and Female. We can also see few outliers. 
 
 # 7) Visualization between Race and Salary in the company
 
 Race label:
-1 : White
-2 : Black or African American 
-3 : Asian
-4 : Two or more races
-5 : American Indian or Alaska Native 
-6 : Hispanic
+1. White
+2. Black or African American 
+3. Asian
+4. Two or more races
+5. American Indian or Alaska Native 
+6. Hispanic
 
 ```{r message=FALSE, warning=FALSE}
 p_tmp <- data %>%   
@@ -424,6 +426,8 @@ data %>%
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank())
 ```
+
+
 CONCLUSION: It is difficult to see the relationship between Race and Salary because of the Race ratio. Indeed, in our data, we can see 187 Whites compared to 3 American Indian or 1 Hispanic. Hence, for this study, we need more data.
 
 # 8) Visualization of Recruitment sources over recruiting time in each department
@@ -529,8 +533,8 @@ p = data_ %>%
         # panel.background = element_blank(),
 			  # axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
-			  # axis.title.y=element_blank(),
+        axis.ticks.x=element_blank(),
+			  axis.title.y=element_blank()) +
         # axis.text.y=element_blank(),
         # axis.ticks.y=element_blank()) + 
   transition_states(Yr, transition_length = 1, state_length = 30) +
