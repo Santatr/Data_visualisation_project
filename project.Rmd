@@ -27,6 +27,8 @@ library(gridExtra)
 library(transformr)
 ```
 
+> Setup (git, renv, data) works out of the box
+
 # 2) Load the dataset
 ```{r message=FALSE, warning=FALSE}
 data <- read_csv("data/HRDataset_v14.csv")
@@ -37,6 +39,8 @@ head(data)
 ```{r message=FALSE, warning=FALSE}
 glimpse(data)
 ```
+
+> I count the two above as a table
 
 # 4) Research questions:
 1. Is there any relation between gender and salary in each department?
@@ -74,6 +78,8 @@ encode_ordinal <- function(x, order = unique(x)) {
 
 data <- data %>% mutate(RaceDescID = encode_ordinal(data[["RaceDesc"]]))
 ```
+
+> Nothing wrong with this, but there are functions in the `purrr` package that are easier to use.
 
 - Convert the date in type chr to date format
 
@@ -264,6 +270,8 @@ data %>%
 
 
 CONCLUSION: Fortunately, the Sex variable is more likely balanced in our data, We can observe the similarity in the distribution of Salary in each department between Male and Female. We can also see few outliers. 
+
+> These are a lot more displays of the same data than one would include in a study. Would have been better to number/label the displays to refer to them.   
 
 # 7) Visualization between Race and Salary in the company
 
@@ -543,6 +551,14 @@ p = data_ %>%
 
 animate(p, nframes = 200)
 ```
+
+> Might habe been better to compare frequencies rather than absolute numbers in these displays.
+
+> Very many plots and substantial effort. Good coding but try avoiding reassigning generic variables like `data`. 
+> Connection between conclusion and display limited. 
+
+
+
 
 
 
